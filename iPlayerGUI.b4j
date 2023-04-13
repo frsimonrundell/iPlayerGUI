@@ -1,0 +1,140 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=icon.gif
+File2=icon.ico
+File3=MainForm.bjl
+File4=screenshot-www.bbc.co.uk 2016-12-26 10-39-44.png
+File5=screenshot-www.bbc.co.uk 2016-12-26 10-40-08.png
+File6=screenshot-www.bbc.co.uk 2016-12-26 10-40-32.png
+FileGroup1=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+FileGroup5=Default Group
+FileGroup6=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=jshell
+Library4=xui views
+Module1=FileChooserUtils
+NumberOfFiles=6
+NumberOfLibraries=4
+NumberOfModules=1
+Version=9.8
+@EndOfDesignText@
+#Region  Project Attributes 
+	#MainFormWidth: 550
+	#MainFormHeight: 300 
+#End Region
+
+' Version 4.0 Build
+' January 2023
+
+Sub Process_Globals
+	Private fx As JFX
+	Private MainForm As Form
+	Private RadioButton1 As RadioButton
+	Private RadioButton2 As RadioButton
+	Private txtURL As B4XView
+	Private btnGo As B4XView
+	Private DownloadType As String
+	Private downString As String
+	Private appLocation As String = "C:\Program Files\get_iplayer" 'default is x64 location
+	Private btnAppLocation As B4XView
+	Private ImageView1 As B4XView
+	Private ImageView2 As B4XView
+	Dim FC As DirectoryChooser
+	
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	
+	ReadSettings
+	MainForm = Form1
+	MainForm.RootPane.LoadLayout("MainForm") 'Load the layout file.
+	
+	If File.Exists(appLocation, "get_iplayer.cmd") Then
+		btnAppLocation.Visible=False	
+	End If
+	
+	MainForm.Show
+	RadioButton1.GroupRadioButtons(Array(RadioButton1, RadioButton2))
+	
+	DownloadType="TV"
+End Sub
+
+Sub RadioButton_SelectedChange(Selected As Boolean)
+  Dim rb As RadioButton   
+  rb = Sender
+  If rb.Selected Then 
+  	Log($"RadioButton selected: ${rb.Text}"$)  
+	DownloadType=rb.Text
+  End If
+End Sub
+
+Sub btnGo_MouseClicked (EventData As MouseEvent)
+Dim js As Shell
+
+downString=""
+
+If DownloadType="Radio" Then downString= " --type=radio "
+	downString=downString & " --force " & txtURL.Text & Chr(10) & Chr(13) & "exit"
+Log("Executing " & downString)
+File.WriteString("C:\Users\Public", "iPlayer.bat", Chr(34) & appLocation & "\get_iplayer" & Chr(34) & " " & downString)
+
+js.Initialize("js", "cmd.exe", Array As String("/c", "start", "C:\Users\Public\iPlayer.bat"))
+js.WorkingDirectory = "C:\Users\Public"
+js.Run(-1)
+
+End Sub
+
+
+Private Sub btnAppLocation_Click
+	' select Location of get_iplayer  - default is C:\Program Files\get_iplayer
+	If appLocation="" Then appLocation = "C:\Program Files\get_iplayer\"
+	FC.Initialize
+	FC.Title="Select Folder where get_iplayer is installed"
+	
+	appLocation=FC.Show(MainForm)
+	
+	Log("iPlayer to be found at " & appLocation)
+	
+	
+End Sub
+
+Private Sub txtURL_MouseClicked (EventData As MouseEvent)
+	'clear when you click in to add another URL
+	txtURL.Text=""
+	
+End Sub
+
+Sub ReadSettings
+	'=====================================================
+	' ReadSettings
+	'=============
+	'
+	' Purpose:
+	'=========
+	' Get error settings from Roaming\iplayerGUI.ini
+	' or create if not available
+	'
+	Private SettingsMap As Map
+	
+	'==============READ SETTINGS FROM CONFIG FILE================
+	'Check if the settings file exists, else create a new file
+	
+If File.Exists(File.DirData("iPlayerGUI"), "iplayerGUI.ini") Then
+		SettingsMap = File.ReadMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini")
+Else
+		SettingsMap = CreateMap ("appLocation": "C:\Program Files\get_iplayer")
+		File.WriteMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini", SettingsMap)
+		Log("New ini File Created")
+End If
+
+	'==========READ SETTINGS FROM MAP=================
+	appLocation=SettingsMap.Get("appLocation")
+	Log("iPlayer App is found at " & appLocation)
+		
+
+End Sub
