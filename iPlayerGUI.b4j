@@ -1,35 +1,35 @@
 ﻿AppType=JavaFX
 Build1=Default,b4j.example
-File1=icon.gif
-File2=icon.ico
-File3=MainForm.bjl
-File4=screenshot-www.bbc.co.uk 2016-12-26 10-39-44.png
-File5=screenshot-www.bbc.co.uk 2016-12-26 10-40-08.png
-File6=screenshot-www.bbc.co.uk 2016-12-26 10-40-32.png
+File1=bbc.png
+File2=icon.gif
+File3=icon.ico
+File4=iPlayer.png
+File5=MainForm.bjl
 FileGroup1=Default Group
 FileGroup2=Default Group
 FileGroup3=Default Group
 FileGroup4=Default Group
 FileGroup5=Default Group
-FileGroup6=Default Group
 Group=Default Group
 Library1=jcore
 Library2=jfx
 Library3=jshell
 Library4=xui views
+Library5=jmsgboxes
 Module1=FileChooserUtils
-NumberOfFiles=6
-NumberOfLibraries=4
+NumberOfFiles=5
+NumberOfLibraries=5
 NumberOfModules=1
 Version=9.8
 @EndOfDesignText@
 #Region  Project Attributes 
 	#MainFormWidth: 550
 	#MainFormHeight: 300 
+	#PackagerProperty: IncludedModules = javafx.web
 #End Region
 
 ' Version 4.0 Build
-' January 2023
+' April 2023
 
 Sub Process_Globals
 	Private fx As JFX
@@ -40,28 +40,76 @@ Sub Process_Globals
 	Private btnGo As B4XView
 	Private DownloadType As String
 	Private downString As String
-	Private appLocation As String = "C:\Program Files\get_iplayer" 'default is x64 location
-	Private btnAppLocation As B4XView
+	Private appLocation As String
+	Private saveLocation As String
 	Private ImageView1 As B4XView
 	Private ImageView2 As B4XView
 	Dim FC As DirectoryChooser
-	
+	Private MB As MenuBar
+	Private lblSaveLocation As B4XView
+	Private pnlBackground As Pane
+	Private lblSavePrompt As B4XView
+	Private pnlSave As B4XView
 End Sub
 
 Sub AppStart (Form1 As Form, Args() As String)
 	
+	saveLocation=GetSystemProperty("user.home","")
+	appLocation="C:\Program Files\get_iPlayer"
 	ReadSettings
 	MainForm = Form1
 	MainForm.RootPane.LoadLayout("MainForm") 'Load the layout file.
 	
-	If File.Exists(appLocation, "get_iplayer.cmd") Then
-		btnAppLocation.Visible=False	
+	If File.Exists(appLocation, "get_iplayer.cmd")=False Then
+		setAppLocation
 	End If
 	
+	lblSaveLocation.Text=saveLocation
+	
+	MB.Initialize("MB")
+	MainForm.RootPane.AddNode(MB,0,0,MainForm.RootPane.PrefWidth,20)
 	MainForm.Show
+  
+	Dim FileM As Menu
+	FileM.Initialize("Options","Menu")
+  
+	Dim setSaveLocationMenu As MenuItem
+	setSaveLocationMenu.Initialize("Save Location","Menu")
+	FileM.MenuItems.Add(setSaveLocationMenu)
+	
+	Dim setAboutMenu As MenuItem
+	setAboutMenu.Initialize("About","Menu")
+	FileM.MenuItems.Add(setAboutMenu)
+	  
+	MB.Menus.Add(FileM)
+	
 	RadioButton1.GroupRadioButtons(Array(RadioButton1, RadioButton2))
 	
 	DownloadType="TV"
+End Sub
+
+Private Sub Menu_Action
+	Dim MI As MenuItem = Sender
+	Select MI.Text
+		Case "About"
+			showAbout
+		Case "Save Location"
+			setSaveLocation
+	End Select
+End Sub
+
+Private Sub showAbout
+	
+	Private m As Msgboxes
+	Private strAbout As String
+	
+	strAbout="This work of genius created by Fr. Simon Rundell" & Chr(13) & "dotchurch ltd" & Chr(13) & _
+	         "Creative Commons CC-NC-BY 2023"
+	
+	m.DialogType="INFO"
+	m.Show(strAbout, "get_iPlayerGUI")
+
+	
 End Sub
 
 Sub RadioButton_SelectedChange(Selected As Boolean)
@@ -79,18 +127,39 @@ Dim js As Shell
 downString=""
 
 If DownloadType="Radio" Then downString= " --type=radio "
-	downString=downString & " --force " & txtURL.Text & Chr(10) & Chr(13) & "exit"
-Log("Executing " & downString)
-File.WriteString("C:\Users\Public", "iPlayer.bat", Chr(34) & appLocation & "\get_iplayer" & Chr(34) & " " & downString)
-
+	downString=downString & " --force " & txtURL.Text 
+	File.WriteString("C:\Users\Public", "iPlayer.bat", Chr(34) & appLocation & "\get_iplayer" & Chr(34) & " " & downString & " --output " & saveLocation & Chr(10) & Chr(13) & "exit")
+	
 js.Initialize("js", "cmd.exe", Array As String("/c", "start", "C:\Users\Public\iPlayer.bat"))
 js.WorkingDirectory = "C:\Users\Public"
-js.Run(-1)
+	js.Run(-1)
 
 End Sub
 
+Private Sub setSaveLocation
+	
+	Private SettingsMap As Map
+	
+	' select Location of get_iplayer  - default is user's own directory
 
-Private Sub btnAppLocation_Click
+	FC.Initialize
+	FC.Title="Select Save Location"
+	
+	saveLocation=FC.Show(MainForm)
+	lblSaveLocation.Text=saveLocation
+	
+	SettingsMap = CreateMap ("appLocation": appLocation, "saveLocation":saveLocation)
+	File.WriteMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini", SettingsMap)
+	Log("ini File updated")
+	
+	
+End Sub
+
+
+Private Sub setAppLocation
+	
+	Private SettingsMap As Map
+	
 	' select Location of get_iplayer  - default is C:\Program Files\get_iplayer
 	If appLocation="" Then appLocation = "C:\Program Files\get_iplayer\"
 	FC.Initialize
@@ -98,7 +167,9 @@ Private Sub btnAppLocation_Click
 	
 	appLocation=FC.Show(MainForm)
 	
-	Log("iPlayer to be found at " & appLocation)
+	SettingsMap = CreateMap ("appLocation": appLocation, "saveLocation":saveLocation)
+	File.WriteMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini", SettingsMap)
+	Log("ini File updated")
 	
 	
 End Sub
@@ -127,14 +198,17 @@ Sub ReadSettings
 If File.Exists(File.DirData("iPlayerGUI"), "iplayerGUI.ini") Then
 		SettingsMap = File.ReadMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini")
 Else
-		SettingsMap = CreateMap ("appLocation": "C:\Program Files\get_iplayer")
+		SettingsMap = CreateMap ("appLocation": appLocation, "saveLocation":saveLocation)
 		File.WriteMap(File.DirData("iPlayerGUI"), "iplayerGUI.ini", SettingsMap)
 		Log("New ini File Created")
 End If
 
 	'==========READ SETTINGS FROM MAP=================
-	appLocation=SettingsMap.Get("appLocation")
+	'appLocation=SettingsMap.Get("appLocation")
+	saveLocation=SettingsMap.Get("saveLocation")
+	Log("========SETTINGS FROM INI=============")
 	Log("iPlayer App is found at " & appLocation)
+	Log("Saving to " & saveLocation)
 		
 
 End Sub
